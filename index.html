@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интерактивный План Поездки в Дубай</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Config & Styles -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        dubai: {
+                            gold: '#C5A059',
+                            sand: '#F5E6CA',
+                            teal: '#006B6B',
+                            dark: '#1A1A1A',
+                            light: '#FAFAFA'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #FAFAFA;
+            color: #1A1A1A;
+        }
+        .chart-container {
+            position: relative; 
+            width: 100%; 
+            max-width: 600px; 
+            margin-left: auto; 
+            margin-right: auto; 
+            height: 250px; 
+            max-height: 300px; 
+        }
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F5E6CA;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #C5A059; 
+            border-radius: 4px;
+        }
+    </style>
+
+    <!-- Chosen Palette: Dubai Luxe (Gold, Sand, Teal) -->
+    <!-- Application Structure Plan: 
+         1. Header: Trip summary and progress.
+         2. Main Grid: 
+            - Left: Interactive Timeline (Day Selector).
+            - Center: Dynamic Detail View (The core itinerary logic).
+            - Right: Dashboard (Crowd Forecast Chart, Tips).
+         3. Logic: Dates are fixed (Feb 14-19). Order is optimized for logistics (grouping locations) and avoiding crowds (weekdays for popular spots).
+    -->
+    <!-- Visualization & Content Choices:
+         - Chart.js: To visualize "Crowd Forecast" per day to justify the scheduling.
+         - Timeline: To show the flow of the trip clearly.
+         - Interactive Cards: To drill down into specific details for each attraction.
+         - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Navigation / Header -->
+    <header class="bg-dubai-teal text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold tracking-wide">Dubai Explorer <span class="text-dubai-gold">2026</span></h1>
+                <p class="text-sm text-gray-200">14 Фев - 19 Фев | 6 Дней</p>
+            </div>
+            <div class="hidden md:block">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-semibold">Прогресс путешествия:</span>
+                    <div class="w-32 bg-teal-900 rounded-full h-2.5">
+                        <div id="progress-bar" class="bg-dubai-gold h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- Intro Section (Mobile/Top) -->
+        <div class="lg:col-span-12 mb-4">
+            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-dubai-gold">
+                <h2 class="text-xl font-bold mb-2">Добро пожаловать в ваш персональный гид</h2>
+                <p class="text-gray-600">
+                    Этот интерактивный план составлен с учетом логистики, загруженности достопримечательностей и времени в пути. 
+                    Мы оптимизировали маршрут так, чтобы самые популярные места (как Музей Будущего) выпадали на будни, а длительные поездки (Фуджейра) занимали отдельный день.
+                    Используйте меню ниже, чтобы изучить план на каждый день.
+                </p>
+            </div>
+        </div>
+
+        <!-- Sidebar: Day Navigator -->
+        <aside class="lg:col-span-3 space-y-4">
+            <h3 class="text-lg font-bold text-dubai-dark mb-4 border-b-2 border-dubai-gold pb-2 inline-block">Расписание</h3>
+            <div id="day-nav" class="space-y-2 flex flex-col">
+                <!-- Navigation buttons injected by JS -->
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="bg-dubai-sand/30 p-4 rounded-lg mt-8">
+                <h4 class="font-bold text-dubai-teal mb-2">Советы:</h4>
+                <ul class="text-sm text-gray-700 list-disc list-inside space-y-1">
+                    <li>Суббота/Воскресенье — выходные (очень людно).</li>
+                    <li>Такси — лучший транспорт.</li>
+                    <li>Бронируйте билеты заранее (особенно Museum of the Future).</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main View: Daily Detail -->
+        <section class="lg:col-span-6">
+            <div id="day-content" class="bg-white rounded-2xl shadow-lg overflow-hidden min-h-[500px] border border-gray-100">
+                <!-- Content injected by JS -->
+            </div>
+        </section>
+
+        <!-- Right Panel: Analytics & Context -->
+        <aside class="lg:col-span-3 space-y-6">
+            
+            <!-- Crowd Forecast Chart -->
+            <div class="bg-white p-4 rounded-xl shadow-sm">
+                <h3 class="font-bold text-gray-800 mb-2">Прогноз загруженности</h3>
+                <p class="text-xs text-gray-500 mb-4">Оценка плотности туристов по дням недели.</p>
+                <div class="chart-container">
+                    <canvas id="crowdChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Transport Map Placeholder (Conceptual) -->
+            <div class="bg-dubai-teal/5 p-4 rounded-xl border border-dubai-teal/20">
+                <h3 class="font-bold text-dubai-teal mb-2">Логистика дня</h3>
+                <div id="logistics-info" class="text-sm text-gray-700">
+                    Выберите день, чтобы увидеть логистику.
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                <h3 class="font-bold text-yellow-800 mb-1">⚠️ Важное примечание</h3>
+                <p class="text-sm text-yellow-700">
+                    <strong>Ain Dubai</strong> закрыт на техническое обслуживание. Пожалуйста, проверьте официальный сайт перед поездкой. В план добавлена прогулка по Bluewaters как альтернатива.
+                </p>
+            </div>
+
+        </aside>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dubai-dark text-gray-400 py-6 mt-auto">
+        <div class="container mx-auto px-4 text-center text-sm">
+            <p>&copy; 2026 Dubai Travel Planner. Создано для идеального отпуска.</p>
+        </div>
+    </footer>
+
+    <!-- Templates for JS rendering -->
+    <template id="day-template">
+        <div class="animate-fade-in">
+            <!-- Header Image Area -->
+            <div class="h-32 bg-gradient-to-r from-dubai-teal to-teal-600 relative p-6 flex items-end">
+                <div class="absolute top-4 right-4 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white text-xs font-bold">
+                    <span id="date-badge">DATE</span>
+                </div>
+                <h2 id="day-title" class="text-3xl font-bold text-white relative z-10">Day Title</h2>
+            </div>
+
+            <!-- Timeline Content -->
+            <div class="p-6">
+                <p id="day-logic" class="text-gray-600 italic mb-6 border-l-4 border-dubai-gold pl-4 text-sm bg-gray-50 py-2 rounded-r-lg">
+                    Logic description here...
+                </p>
+
+                <div id="activities-list" class="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                    <!-- Activities injected here -->
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // --- DATA STORE ---
+        const tripData = [
+            {
+                id: 1,
+                date: "14.02",
+                dayOfWeek: "Суббота",
+                title: "Цветы и Фонтаны",
+                crowdLevel: 90,
+                logic: "Суббота — самый загруженный день. Мы начинаем с Miracle Garden утром, чтобы избежать жары и пика толпы, а вечер проводим в Dubai Mall. Шоу фонтанов — идеальное завершение Дня святого Валентина.",
+                logistics: "🚕 Такси: Отель -> Miracle Garden (25-30 мин).<br>🚕 Такси: Miracle Garden -> Dubai Mall (20-25 мин).<br>🚇 Метро: Из Dubai Mall удобно уехать на метро.",
+                activities: [
+                    {
+                        time: "09:30 - 12:30",
+                        title: "Dubai Miracle Garden",
+                        type: "Природа / Фото",
+                        desc: "Крупнейший цветочный сад в мире. Лучше приезжать к открытию.",
+                        tips: "Купите билеты онлайн, чтобы не стоять в очереди. Возьмите воду и шляпу.",
+                        icon: "🌸"
+                    },
+                    {
+                        time: "13:30 - 17:30",
+                        title: "Dubai Mall (Шоппинг & Аквариум)",
+                        type: "Развлечения",
+                        desc: "Обед на фудкорте или в ресторане с видом. Прогулка по моллу, просмотр аквариума (снаружи бесплатно).",
+                        tips: "Скачайте приложение Dubai Mall, чтобы не заблудиться.",
+                        icon: "🛍️"
+                    },
+                    {
+                        time: "18:00 - 20:00",
+                        title: "Шоу Фонтанов & Burj Khalifa",
+                        type: "Шоу",
+                        desc: "Посмотрите шоу фонтанов. Они играют каждые 30 минут с 18:00.",
+                        tips: "Лучший бесплатный вид — с моста Souk Al Bahar.",
+                        icon: "💦"
+                    }
+                ]
+            },
+            {
+                id: 2,
+                date: "15.02",
+                dayOfWeek: "Воскресенье",
+                title: "Путешествие в Фуджейру",
+                crowdLevel: 70,
+                logic: "Воскресенье всё еще выходной. Чтобы избежать городских пробок и толп в моллах, уезжаем на целый день в эмират Фуджейра к Индийскому океану.",
+                logistics: "🚗 Аренда авто или экскурсия.<br>⏱️ Время в пути: 1.5 - 2 часа в одну сторону.<br>📍 Маршрут: Дубай -> Шоссе E84.",
+                activities: [
+                    {
+                        time: "08:00 - 10:00",
+                        title: "Дорога в Фуджейру",
+                        type: "Поездка",
+                        desc: "Живописная дорога через горы Хаджар.",
+                        tips: "Остановитесь на Friday Market (рынок) по пути за фруктами и коврами.",
+                        icon: "🚗"
+                    },
+                    {
+                        time: "10:00 - 13:00",
+                        title: "Пляжный отдых (Snoopy Island)",
+                        type: "Релакс / Снорклинг",
+                        desc: "Отдых на пляже отеля Sandy Beach или Al Aqah. Снорклинг у острова Снупи.",
+                        tips: "Вода в океане прохладнее и чище, чем в заливе.",
+                        icon: "🏖️"
+                    },
+                    {
+                        time: "14:00 - 16:00",
+                        title: "Форт Фуджейры и Мечеть Al Bidya",
+                        type: "История",
+                        desc: "Посещение старейшей мечети в ОАЭ и исторического форта.",
+                        tips: "Отличные панорамные виды для фото.",
+                        icon: "🏰"
+                    },
+                    {
+                        time: "17:00 - 19:00",
+                        title: "Возвращение в Дубай",
+                        type: "Поездка",
+                        desc: "Обратная дорога. Ужин в отеле.",
+                        tips: "",
+                        icon: "🔙"
+                    }
+                ]
+            },
+            {
+                id: 3,
+                date: "16.02",
+                dayOfWeek: "Понедельник",
+                title: "Будущее и Пальма",
+                crowdLevel: 40,
+                logic: "Понедельник — рабочий день, идеальное время для популярных локаций. Утром идем в Музей (меньше детей), вечером — на закат в Aura Skypool.",
+                logistics: "🚇 Метро: Красная линия (Emirates Towers) для Музея.<br>🚕 Такси: Музей -> Palm Jumeirah (20-30 мин).",
+                activities: [
+                    {
+                        time: "10:00 - 13:00",
+                        title: "Музей Будущего (Museum of the Future)",
+                        type: "Инновации",
+                        desc: "Самое красивое здание в мире. Экспозиции о космосе, экологии и технологиях.",
+                        tips: "❗ Билеты нужно покупать за 2-3 недели. Строго по времени.",
+                        icon: "🚀"
+                    },
+                    {
+                        time: "13:00 - 15:00",
+                        title: "Обед и переезд",
+                        type: "Отдых",
+                        desc: "Обед в DIFC (рядом с музеем) или переезд на Пальму.",
+                        tips: "",
+                        icon: "🍴"
+                    },
+                    {
+                        time: "16:00 - 19:00",
+                        title: "Aura Skypool",
+                        type: "Бассейн / Вид",
+                        desc: "Самый высокий панорамный бассейн 360°. Идеально для встречи заката.",
+                        tips: "Требуется предварительное бронирование. Дорого, но того стоит.",
+                        icon: "🏊‍♀️"
+                    }
+                ]
+            },
+            {
+                id: 4,
+                date: "17.02",
+                dayOfWeek: "Вторник",
+                title: "Дикая Природа",
+                crowdLevel: 50,
+                logic: "Сафари парк огромный и требует много ходьбы. Вторник — спокойный день. Закладываем большую часть дня, так как парк находится далеко от центра.",
+                logistics: "🚕 Такси: Это единственный удобный способ добраться до Safari Park (находится в районе Al Warqa).",
+                activities: [
+                    {
+                        time: "10:00 - 15:00",
+                        title: "Dubai Safari Park",
+                        type: "Зоопарк",
+                        desc: "Разделен на деревни (Африканская, Азиатская и т.д.). Сафари-тур на автобусе включен в полный билет.",
+                        tips: "Обязательно посетите шоу птиц. Кормление жирафов — за доп. плату.",
+                        icon: "🦁"
+                    },
+                    {
+                        time: "17:00 - 20:00",
+                        title: "Свободный вечер / Dubai Festival City",
+                        type: "Опционально",
+                        desc: "По пути обратно можно заехать в Festival City на лазерное шоу Imagine (бесплатно).",
+                        tips: "",
+                        icon: "✨"
+                    }
+                ]
+            },
+            {
+                id: 5,
+                date: "18.02",
+                dayOfWeek: "Среда",
+                title: "Bluewaters и Релакс",
+                crowdLevel: 50,
+                logic: "День посвящен району Dubai Marina и острову Bluewaters. Хотя Ain Dubai закрыт, сам район очень живописен для прогулок.",
+                logistics: "🚇 Метро + Трамвай: DMCC Metro -> Dubai Tram -> JBR.",
+                activities: [
+                    {
+                        time: "11:00 - 14:00",
+                        title: "Прогулка по JBR & The Beach",
+                        type: "Пляж / Прогулка",
+                        desc: "Променад вдоль пляжа, множество кафе и магазинов.",
+                        tips: "",
+                        icon: "🚶"
+                    },
+                    {
+                        time: "15:00 - 17:00",
+                        title: "Bluewaters Island",
+                        type: "Остров",
+                        desc: "Перейдите по пешеходному мосту с JBR на Bluewaters.",
+                        tips: "Отличные фото на фоне колеса обозрения (даже если оно не работает).",
+                        icon: "🌉"
+                    },
+                    {
+                        time: "17:00 - 19:00",
+                        title: "Ain Dubai (Внешний осмотр)",
+                        type: "Достопримечательность",
+                        desc: "В данный момент колесо закрыто на обслуживание. Но виды на Марину отсюда потрясающие.",
+                        tips: "Посетите музей мадам Тюссо, который находится рядом.",
+                        icon: "🎡"
+                    }
+                ]
+            },
+            {
+                id: 6,
+                date: "19.02",
+                dayOfWeek: "Четверг",
+                title: "Заключительный День",
+                crowdLevel: 60,
+                logic: "Последний день перед вылетом. Оставляем время для покупок сувениров или повторного посещения любимых мест. Вечером четверга начинается выходной трафик.",
+                logistics: "Зависит от времени вылета.",
+                activities: [
+                    {
+                        time: "10:00 - 13:00",
+                        title: "Souk Madinat Jumeirah",
+                        type: "Опционально",
+                        desc: "Если осталось время — посетите 'Арабскую Венецию'. Вид на Бурдж Аль Араб.",
+                        tips: "Отличное место для покупки качественных сувениров.",
+                        icon: "🛶"
+                    },
+                    {
+                        time: "14:00 - ...",
+                        title: "Трансфер в Аэропорт",
+                        type: "Вылет",
+                        desc: "Закладывайте минимум 3-4 часа до вылета из-за трафика.",
+                        tips: "",
+                        icon: "✈️"
+                    }
+                ]
+            }
+        ];
+
+        // --- APP STATE ---
+        let currentDayId = 1;
+
+        // --- DOM ELEMENTS ---
+        const dayNav = document.getElementById('day-nav');
+        const dayContent = document.getElementById('day-content');
+        const logisticsInfo = document.getElementById('logistics-info');
+        const progressBar = document.getElementById('progress-bar');
+        const ctx = document.getElementById('crowdChart').getContext('2d');
+
+        // --- CHART INITIALIZATION ---
+        const crowdChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: tripData.map(d => d.dayOfWeek),
+                datasets: [{
+                    label: 'Загруженность (%)',
+                    data: tripData.map(d => d.crowdLevel),
+                    backgroundColor: tripData.map(d => d.crowdLevel > 75 ? '#ef4444' : (d.crowdLevel > 50 ? '#C5A059' : '#006B6B')),
+                    borderRadius: 4,
+                    barThickness: 20
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 100 }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // --- FUNCTIONS ---
+
+        function renderNav() {
+            dayNav.innerHTML = '';
+            tripData.forEach(day => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex justify-between items-center ${day.id === currentDayId ? 'bg-dubai-teal text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent hover:border-gray-200'}`;
+                
+                btn.innerHTML = `
+                    <div>
+                        <span class="block text-xs opacity-70 font-semibold uppercase tracking-wider">${day.date}</span>
+                        <span class="font-bold block">${day.dayOfWeek}</span>
+                    </div>
+                    <div class="text-xs ${day.id === currentDayId ? 'text-dubai-sand' : 'text-gray-400'}">
+                        ${day.activities.length} Мест
+                    </div>
+                `;
+                
+                btn.onclick = () => setDay(day.id);
+                dayNav.appendChild(btn);
+            });
+        }
+
+        function setDay(id) {
+            currentDayId = id;
+            renderNav();
+            renderContent();
+            renderLogistics();
+            updateProgress();
+        }
+
+        function renderContent() {
+            const day = tripData.find(d => d.id === currentDayId);
+            const template = document.getElementById('day-template').content.cloneNode(true);
+
+            // Populate Header
+            template.querySelector('#date-badge').textContent = `${day.dayOfWeek}, ${day.date}`;
+            template.querySelector('#day-title').textContent = day.title;
+            template.querySelector('#day-logic').textContent = day.logic;
+
+            // Populate Activities
+            const list = template.querySelector('#activities-list');
+            day.activities.forEach((act, index) => {
+                const item = document.createElement('div');
+                item.className = 'relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group';
+                
+                item.innerHTML = `
+                    <!-- Timeline Dot -->
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-dubai-gold text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 absolute left-0 md:left-1/2 transform -translate-x-1/2 z-10 text-xl">
+                        ${act.icon}
+                    </div>
+                    
+                    <!-- Content Card -->
+                    <div class="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border border-gray-100 card-hover ml-12 md:ml-0 shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-lg text-dubai-dark">${act.title}</h3>
+                            <span class="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-1 rounded">${act.time}</span>
+                        </div>
+                        <span class="text-xs font-semibold text-dubai-teal uppercase tracking-wide mb-2 block">${act.type}</span>
+                        <p class="text-gray-600 text-sm mb-3 leading-relaxed">${act.desc}</p>
+                        ${act.tips ? `
+                            <div class="bg-dubai-sand/20 p-2 rounded text-xs text-yellow-900 flex gap-2">
+                                <span>💡</span>
+                                <span>${act.tips}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+
+            // Inject into DOM with fade effect
+            dayContent.innerHTML = '';
+            dayContent.appendChild(template);
+        }
+
+        function renderLogistics() {
+            const day = tripData.find(d => d.id === currentDayId);
+            logisticsInfo.innerHTML = day.logistics;
+        }
+
+        function updateProgress() {
+            const percentage = (currentDayId / tripData.length) * 100;
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        // --- INIT ---
+        window.addEventListener('DOMContentLoaded', () => {
+            setDay(1);
+        });
+
+    </script>
+</body>
+</html>
